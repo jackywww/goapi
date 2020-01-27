@@ -1,5 +1,4 @@
-
-package main
+ package main
 
 import (
         "context"
@@ -9,20 +8,26 @@ import (
         "os"
         "encoding/json"
         "strconv"
-        "fmt"
+        //"fmt"
         "github.com/tidwall/gjson"
-        "reflect"
+        //"reflect"
 )
 
 var client *elastic.Client
 var host = "http://192.168.1.8:9200/"
+
+type ApiReturn struct {
+        Status int `json:"status"`
+        Message string `json:"message"`
+        Total uint64 `json:"total"`
+        Data interface {} `json:"data"`
+}
 
 func main() {
         router := gin.Default()
         errorlog := log.New(os.Stdout, "APP", log.LstdFlags)
         var err error
         client, err = elastic.NewClient(elastic.SetErrorLog(errorlog), elastic.SetURL(host))
-
         if err != nil {
                 panic(err)
         }
@@ -31,9 +36,13 @@ func main() {
         // Query string parameters are parsed using the existing underlying request object.
         // The request responds to a url matching:  /welcome?firstname=Jane&lastname=Doe
         router.GET("/products/:categoryId/:page/:size", func(c *gin.Context) {
+                apiReturn := ApiReturn{0, "fail", 0, struct{}{}}
                 categoryId := c.Param("categoryId")
                 page, _ := strconv.Atoi(c.Param("page"))
                 size, _ := strconv.Atoi(c.Param("size"))
+                if(size > 20) {
+                        size = 20
+                }
 
                 termsQuery := elastic.NewTermsQuery("category.category_id", categoryId).Boost(1)
                 boolQ := elastic.NewBoolQuery()
@@ -47,10 +56,16 @@ func main() {
                 filter := elastic.NewFetchSourceContext(true).Include("entity_id","price","name","image","stock")
                 res, err = client.Search().Index("magento2_default_catalog_product").Type("product").Query(constantScoreQ).FetchSourceContext(filter).From(page).Size(size).Do(context.Background())
                 b, _ := json.Marshal(res)
-                //fmt.Println(string(b))
                 value := gjson.Get(string(b), "hits.hits.#._source")
-                fmt.Println(reflect.TypeOf(client.Search()).String())
-                c.String(200, value.String())
+                total := gjson.Get(string(b), "hits.total").Uint()
+                //fmt.Println(reflect.TypeOf(value.Value()).String())
+
+                apiReturn.Status = 1
+                apiReturn.Message = "success"
+                apiReturn.Total = total
+                apiReturn.Data = value.Value()
+
+                c.JSON(200, apiReturn)
         })
         router.Run(":8080")
 }
