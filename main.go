@@ -16,7 +16,7 @@ import (
 var client *elastic.Client
 var host = "http://192.168.1.8:9200/"
 
-type ApiReturn struct {
+type ApiResult struct {
         Status int `json:"status"`
         Message string `json:"message"`
         Total uint64 `json:"total"`
@@ -36,7 +36,7 @@ func main() {
         // Query string parameters are parsed using the existing underlying request object.
         // The request responds to a url matching:  /welcome?firstname=Jane&lastname=Doe
         router.GET("/products/:categoryId/:page/:size", func(c *gin.Context) {
-                apiReturn := ApiReturn{0, "fail", 0, struct{}{}}
+                apiResult := ApiResult{0, "fail", 0, struct{}{}}
                 categoryId := c.Param("categoryId")
                 page, _ := strconv.Atoi(c.Param("page"))
                 size, _ := strconv.Atoi(c.Param("size"))
@@ -60,12 +60,12 @@ func main() {
                 total := gjson.Get(string(b), "hits.total").Uint()
                 //fmt.Println(reflect.TypeOf(value.Value()).String())
 
-                apiReturn.Status = 1
-                apiReturn.Message = "success"
-                apiReturn.Total = total
-                apiReturn.Data = value.Value()
+                apiResult.Status = 1
+                apiResult.Message = "success"
+                apiResult.Total = total
+                apiResult.Data = value.Value()
 
-                c.JSON(200, apiReturn)
+                c.JSON(200, apiResult)
         })
         router.Run(":8080")
 }
