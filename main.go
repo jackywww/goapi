@@ -8,13 +8,30 @@ import (
         "os"
         "encoding/json"
         "strconv"
-        "fmt"
+        //"fmt"
         "github.com/tidwall/gjson"
+	"time"
         //"reflect"
 )
 
-var client *elastic.Client
 var host = "http://192.168.1.8:9200/"
+
+func connect() *elastic.Client {
+	client, err := elastic.NewClient(
+		elastic.SetURL(host),
+		elastic.SetSniff(false),
+		elastic.SetHealthcheckInterval(10*time.Second),
+		elastic.SetGzip(false),
+		elastic.SetErrorLog(log.New(os.Stderr, "ELASTIC ", log.LstdFlags)),
+		elastic.SetInfoLog(log.New(os.Stdout, "", log.LstdFlags)))
+
+	if err != nil {
+		panic(err)
+	}
+
+	return client
+
+}
 
 type CategoryApiResult struct {
         Status int `json:"status"`
@@ -31,15 +48,8 @@ type ProductApiResult struct {
 
 func main() {
         router := gin.Default()
-        errorlog := log.New(os.Stdout, "APP", log.LstdFlags)
-        var err error
-        client, err = elastic.NewClient(elastic.SetErrorLog(errorlog), elastic.SetURL(host))
-        if err != nil {
-                panic(err)
-        }
+	client := connect()
 
-
-        var res *elastic.SearchResult
         // Query string parameters are parsed using the existing underlying request object.
         // The request responds to a url matching:  /welcome?firstname=Jane&lastname=Doe
         router.GET("/products/:categoryId/:page/:size", func(c *gin.Context) {
@@ -62,7 +72,7 @@ func main() {
 
                 //gFields := [...]string{"entity_id","price","name","image","stock"}
                 filter := elastic.NewFetchSourceContext(true).Include("entity_id","price","name","image","stock")
-                res, err = client.Search().Index("magento2_default_catalog_product").Type("product").Query(constantScoreQ).FetchSourceContext(filter).From(page).Size(size).Do(context.Background())
+                res, _ := client.Search().Index("magento2_default_catalog_product").Type("product").Query(constantScoreQ).FetchSourceContext(filter).From(page).Size(size).Do(context.Background())
                 b, _ := json.Marshal(res)
                 value := gjson.Get(string(b), "hits.hits.#._source")
                 total := gjson.Get(string(b), "hits.total").Uint()
@@ -84,14 +94,13 @@ func main() {
                 boolQ = boolQ.Must(termsQuery)
                 constantScoreQ := elastic.NewConstantScoreQuery(boolQ)
 
-                res, err = client.Search().Index("magento2_default_catalog_product").Type("product").Query(constantScoreQ).Do(context.Background())
+                res, _ := client.Search().Index("magento2_default_catalog_product").Type("product").Query(constantScoreQ).Do(context.Background())
                 b, _ := json.Marshal(res)
                 value := gjson.Get(string(b), "hits.hits.#._source").Array()
 		
                 apiResult.Status = 1
                 apiResult.Message = "success"
 		if(len(value) > 0){
-			fmt.Println(len(value),value[0].Value())
                 	apiResult.Data = value[0].Value()
 		}
                 c.JSON(200, apiResult)
