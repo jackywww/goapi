@@ -57,7 +57,7 @@ func main() {
                         size = 20
                 }
 
-        	apiResult := CategoryApiResult{0, "fail", 0, struct{}{}}
+        	apiResult := CategoryApiResult{0, "fail", 0, nil}
 
 		if err != nil {
 			apiResult.Message = err.Error()
@@ -83,14 +83,14 @@ func main() {
                 apiResult.Status = 1
                 apiResult.Message = "success"
                 apiResult.Total = total
-                apiResult.Data = value.Value()
+               	apiResult.Data = value.Value()
 
                 c.JSON(200, apiResult)
         })
 
 	router.GET("/product/:productId", func(c *gin.Context) {
 		productId := c.Param("productId")
-		apiResult := ProductApiResult{0, "fail", struct{}{}}
+		apiResult := ProductApiResult{0, "fail", nil}
                 termsQuery := elastic.NewTermsQuery("entity_id", productId).Boost(1)
                 boolQ := elastic.NewBoolQuery()
                 boolQ = boolQ.Must(termsQuery)
