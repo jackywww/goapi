@@ -8,10 +8,8 @@ import (
         "os"
         "encoding/json"
         "strconv"
-        "fmt"
         "github.com/tidwall/gjson"
 	"time"
-        "reflect"
 )
 
 var host = "http://192.168.1.8:9200/"
@@ -52,7 +50,6 @@ func main() {
         // Query string parameters are parsed using the existing underlying request object.
         // The request responds to a url matching:  /welcome?firstname=Jane&lastname=Doe
         router.GET("/products/:categoryId/:page/:size", func(c *gin.Context) {
-		fmt.Println("b", err, reflect.TypeOf(client).String())
                 categoryId := c.Param("categoryId")
                 page, _ := strconv.Atoi(c.Param("page"))
                 size, _ := strconv.Atoi(c.Param("size"))
@@ -82,7 +79,6 @@ func main() {
                 b, _ := json.Marshal(res)
                 value := gjson.Get(string(b), "hits.hits.#._source")
                 total := gjson.Get(string(b), "hits.total").Uint()
-                //fmt.Println(reflect.TypeOf(value.Value()).String())
 
                 apiResult.Status = 1
                 apiResult.Message = "success"
