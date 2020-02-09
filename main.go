@@ -8,28 +8,27 @@ import (
         "os"
         "encoding/json"
         "strconv"
-        //"fmt"
+        "fmt"
         "github.com/tidwall/gjson"
 	"time"
-        //"reflect"
+        "reflect"
 )
 
 var host = "http://192.168.1.8:9200/"
 
-func connect() *elastic.Client {
+func connect() (*elastic.Client, error) {
 	client, err := elastic.NewClient(
 		elastic.SetURL(host),
 		elastic.SetSniff(false),
-		elastic.SetHealthcheckInterval(10*time.Second),
+		elastic.SetHealthcheckInterval(3*time.Second),
 		elastic.SetGzip(false),
 		elastic.SetErrorLog(log.New(os.Stderr, "ELASTIC ", log.LstdFlags)),
 		elastic.SetInfoLog(log.New(os.Stdout, "", log.LstdFlags)))
-
 	if err != nil {
-		panic(err)
+		return nil, err	
 	}
 
-	return client
+	return client, nil
 
 }
 
@@ -48,11 +47,12 @@ type ProductApiResult struct {
 
 func main() {
         router := gin.Default()
-	client := connect()
+	client, err := connect()
 
         // Query string parameters are parsed using the existing underlying request object.
         // The request responds to a url matching:  /welcome?firstname=Jane&lastname=Doe
         router.GET("/products/:categoryId/:page/:size", func(c *gin.Context) {
+		fmt.Println("b", err, reflect.TypeOf(client).String())
                 categoryId := c.Param("categoryId")
                 page, _ := strconv.Atoi(c.Param("page"))
                 size, _ := strconv.Atoi(c.Param("size"))
@@ -61,6 +61,12 @@ func main() {
                 }
 
         	apiResult := CategoryApiResult{0, "fail", 0, struct{}{}}
+
+		if err != nil {
+			apiResult.Message = err.Error()
+			c.JSON(200, apiResult)
+			return
+		}
 
                 termsQuery := elastic.NewTermsQuery("category.category_id", categoryId).Boost(1)
                 boolQ := elastic.NewBoolQuery()
